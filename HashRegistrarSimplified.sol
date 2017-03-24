@@ -253,6 +253,7 @@ contract Registrar {
      * @param _hash The hash to start an auction on
      */    
     function startAuction(bytes32 _hash) inState(_hash, Mode.Open) registryOpen() {
+registrar
         entry newAuction = _entries[_hash];
 
         // for the first month of the registry, make longer auctions
