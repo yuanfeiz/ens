@@ -242,6 +242,17 @@ contract Registrar {
     }
 
     /**
+     * @dev Sets the resolver and owner of a record to 0 in ENS.
+     * @param label The label hash to erase.
+     */
+    function eraseRecord(bytes32 label) internal {
+        var node = sha3(rootNode, label);
+        ens.setSubnodeOwner(rootNode, label, address(this));
+        ens.setResolver(node, 0);
+        ens.setOwner(node, 0);
+    }
+
+    /**
      * @dev Start an auction for an available hash
      * 
      * Anyone can start an auction by sending an array of hashes that they want to bid for. 
@@ -426,8 +437,10 @@ contract Registrar {
         h.highestBid = 0;
         h.deed = Deed(0);
 
-        if(ens.owner(rootNode) == address(this))
-            ens.setSubnodeOwner(rootNode, _hash, 0);
+        // If we're the registrar, zero out the address and resolver in ENS.
+        if(ens.owner(rootNode) == address(this)) {
+            eraseRecord(_hash);
+        }
         deedContract.closeDeed(1000);
     }  
 
@@ -445,8 +458,9 @@ contract Registrar {
         
         entry h = _entries[hash];
 
-        if(ens.owner(rootNode) == address(this))
-            ens.setSubnodeOwner(rootNode, hash, 0);
+        if(ens.owner(rootNode) == address(this)) {
+            eraseRecord(hash);
+        }
 
         if(address(h.deed) != 0) {
             // Reward the discoverer with 50% of the deed
