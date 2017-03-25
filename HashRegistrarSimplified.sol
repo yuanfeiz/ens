@@ -242,17 +242,6 @@ contract Registrar {
     }
 
     /**
-     * @dev Sets the resolver and owner of a record to 0 in ENS.
-     * @param label The label hash to erase.
-     */
-    function eraseRecord(bytes32 label) internal {
-        var node = sha3(rootNode, label);
-        ens.setSubnodeOwner(rootNode, label, address(this));
-        ens.setResolver(node, 0);
-        ens.setOwner(node, 0);
-    }
-
-    /**
      * @dev Start an auction for an available hash
      * 
      * Anyone can start an auction by sending an array of hashes that they want to bid for. 
@@ -439,7 +428,9 @@ contract Registrar {
 
         // If we're the registrar, zero out the address and resolver in ENS.
         if(ens.owner(rootNode) == address(this)) {
-            eraseRecord(_hash);
+            var labels = new bytes32[](1);
+            labels[0] = _hash;
+            _eraseNode(0, labels, rootNode);
         }
         deedContract.closeDeed(1000);
     }  
@@ -459,7 +450,9 @@ contract Registrar {
         entry h = _entries[hash];
 
         if(ens.owner(rootNode) == address(this)) {
-            eraseRecord(hash);
+            var labels = new bytes32[](1);
+            labels[0] = hash;
+            _eraseNode(0, labels, rootNode);
         }
 
         if(address(h.deed) != 0) {
@@ -472,6 +465,36 @@ contract Registrar {
         }
         HashInvalidated(hash, unhashedName, h.value, h.registrationDate);
         h.deed = Deed(0);
+    }
+
+    /**
+     * @dev Allows anyone to delete the owner and resolver records for a (subdomain of) a
+     *      name that is not currently owned in the registrar. If passing, eg, 'foo.bar.eth',
+     *      the owner and resolver fields on 'foo.bar.eth' and 'bar.eth' will all be cleared.
+     * @param labels A series of label hashes identifying the name to zero out, rooted at the
+     *        registrar's root. Must contain at least one element. For instance, to zero 
+     *        'foo.bar.eth' on a registrar that owns '.eth', pass an array containing
+     *        [sha3('foo'), sha3('bar')].
+     */
+    function eraseNode(bytes32[] labels) {
+        if(labels.length == 0) throw;
+        if(state(labels[labels.length - 1]) == Mode.Owned) throw;
+
+        _eraseNode(labels.length - 1, labels, rootNode);
+    }
+
+    function _eraseNode(uint idx, bytes32[] labels, bytes32 node) internal {
+        // Take ownership of the node
+        ens.setSubnodeOwner(node, labels[idx], address(this));
+        node = sha3(node, labels[idx]);
+        
+        // Recurse if there's more labels
+        if(idx > 0)
+            _eraseNode(idx - 1, labels, node);
+
+        // Erase the resolver and owner records
+        ens.setResolver(node, 0);
+        ens.setOwner(node, 0);
     }
 
     /**
