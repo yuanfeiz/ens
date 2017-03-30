@@ -1,6 +1,6 @@
 pragma solidity ^0.4.0;
 
-contract AbstractPublicResolver {
+contract ResolverInterface {
     function PublicResolver(address ensAddr);
     function supportsInterface(bytes4 interfaceID) constant returns (bool);
     function addr(bytes32 node) constant returns (address ret);
